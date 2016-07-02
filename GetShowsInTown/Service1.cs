@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Timers;
 using System.Net;
 using System.IO;
+using Newtonsoft.Json;
 
 namespace GetShowsInTown
 {
@@ -27,8 +28,9 @@ namespace GetShowsInTown
         protected override void OnStart(string[] args)
         {
             //eventTimer.Interval = 3600000;
-            eventTimer.Interval = 60;
-     
+            eventTimer.Interval = 60000;
+
+
             eventTimer.Elapsed += new ElapsedEventHandler(eventTimerTick);
             eventTimer.Start();
         }
@@ -48,35 +50,33 @@ namespace GetShowsInTown
         private List<Event> GetEventsInTown()
         {
             WebRequest request;
-            var reader = new StreamReader("bandstosearch");
-            var requestString = "http://api.bandsintown.com/events/search?";
+            string[] bands = Resources.BandNames.Split(',');
+            var requestString = String.Empty;
             var result = string.Empty;
+            StreamReader reader;
 
             //add bands from list (50 max)
-            while (!reader.EndOfStream)
+            foreach (string band in bands)
             {
-                var band = String.Empty;
-                band = reader.ReadLine();
-
                 band.Replace(" ", "+");
-                requestString += "artist[]=" + band + "&";
-            }
+                requestString = string.Format("http://api.bandsintown.com/artists/{0}/events/search.json?api_version=2.0&app_id=GetShowsInTown&location=Lansing,MI&radius=100", band);
 
-            reader.Close();
-            requestString += "location=Lansing,MI&radius=100&format=json&app_id=GetShowsInTown";
 
-            request = WebRequest.Create(requestString);
-            request.UseDefaultCredentials = true;
-            request.Method = "GET";
+                request = WebRequest.Create(requestString);
+                request.UseDefaultCredentials = true;
+                request.Method = "GET";
 
-            try
-            {
-                reader = new StreamReader(request.GetResponse().GetResponseStream());
-                result = reader.ReadToEnd();
-            }
-            catch (Exception e)
-            {
-                throw e;
+                try
+                {
+                    reader = new StreamReader(request.GetResponse().GetResponseStream());
+                    result = reader.ReadToEnd();
+
+                    var events = JsonConvert.DeserializeObject<Event>(result);
+                }
+                catch (Exception e)
+                {
+                    throw e;
+                }
             }
 
             return new List<Event>();
